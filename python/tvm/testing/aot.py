@@ -747,6 +747,7 @@ def run_and_check_with_project_api(
         project_dir.mkdir()
 
         workspace_bytes = 0
+        executor_factories = []
         # Extra tar file for headers
         with tempfile.NamedTemporaryFile() as headers_tar_temp_file:
             with tarfile.open(headers_tar_temp_file.name, "w:gz") as tf:
@@ -758,15 +759,7 @@ def run_and_check_with_project_api(
                     temp_model_tar_directory = base_path / "temp"
                     if not temp_model_tar_directory.exists():
                         temp_model_tar_directory.mkdir()
-                    model_tar_path = temp_model_tar_directory / f"{model.name}.tar"
-                    export_model_library_format(compiled_model.executor_factory, model_tar_path)
-
-                    # Interface C APIs does not need compiler generated
-                    # workspace to generate the test application, because
-                    # workspace size is codegen'd as a macro to
-                    # tvmgen_<model_name>.h.
-                    if interface_api != "c":
-                        workspace_bytes += mlf_extract_workspace_size_bytes(model_tar_path)
+                    executor_factories.append(compiled_model.executor_factory)
 
                     workspace_bytes += model.extra_memory_in_bytes
 
@@ -796,6 +789,16 @@ def run_and_check_with_project_api(
                             data_linkage,
                             tf,
                         )
+
+            model_tar_path = temp_model_tar_directory / f"{model.name}.tar"
+            export_model_library_format(executor_factories, model_tar_path)
+            
+            # Interface C APIs does not need compiler generated
+            # workspace to generate the test application, because
+            # workspace size is codegen'd as a macro to
+            # tvmgen_<model_name>.h.
+            if interface_api != "c":
+                workspace_bytes += mlf_extract_workspace_size_bytes(model_tar_path)
 
             custom_params = " ".join(
                 [f" {param}='{value}'" for param, value in runner.parameters.items()]
@@ -1014,6 +1017,7 @@ def compile_and_run_with_project_api(
     target_opts: Dict = None,
     test_dir: str = None,
     verbose: bool = False,
+    schedule_name: str = None,
 ):
     """This is a wrapper API to compile and run models as test for AoT
 
@@ -1038,6 +1042,7 @@ def compile_and_run_with_project_api(
         pass_config=runner.pass_config,
         use_runtime_executor=use_runtime_executor,
         target=tvm.target.Target(target),
+        schedule_name=schedule_name,
     )
 
     run_and_check_with_project_api(

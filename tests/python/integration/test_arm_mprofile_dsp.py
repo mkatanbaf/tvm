@@ -20,7 +20,7 @@ import pytest
 import tvm
 import tvm.testing
 from tvm import relay
-from tvm.testing.aot import AOTTestModel, compile_and_run, generate_ref_data
+from tvm.testing.aot import AOTTestModel, compile_and_run_with_project_api, generate_ref_data
 from tvm.micro.testing.aot_test_utils import AOT_CORSTONE300_RUNNER
 
 
@@ -95,7 +95,7 @@ def test_conv2d(data_shape_nhwc, kernel_size, num_filter, strides, padding, dila
     inputs = {"input": np.random.randint(low=-128, high=127, size=ishape, dtype=dtype)}
     output_list = generate_ref_data(ref_mod, inputs)
 
-    compile_and_run(
+    compile_and_run_with_project_api(
         AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
         runner=AOT_CORSTONE300_RUNNER,
         interface_api="c",
@@ -159,7 +159,7 @@ def test_conv1d(data_shape_nwc, kernel_size, num_filter, strides, padding, dtype
     inputs = {"input": np.random.randint(low=-128, high=127, size=ishape, dtype=dtype)}
     output_list = generate_ref_data(ref_mod, inputs)
 
-    compile_and_run(
+    compile_and_run_with_project_api(
         AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
         runner=AOT_CORSTONE300_RUNNER,
         interface_api="c",
@@ -193,7 +193,7 @@ def test_dense(M, K, N):
     inputs = {"input": np.random.randint(low=-128, high=127, size=ishape, dtype="int8")}
     output_list = generate_ref_data(mod, inputs)
 
-    compile_and_run(
+    compile_and_run_with_project_api(
         AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
         runner=AOT_CORSTONE300_RUNNER,
         interface_api="c",
@@ -225,7 +225,7 @@ def test_maxpool_2d(data_shape_nhwc, pool_size, strides, padding):
     inputs = {"input": np.random.randint(low=-128, high=127, size=ishape, dtype="int8")}
     output_list = generate_ref_data(mod, inputs)
 
-    compile_and_run(
+    compile_and_run_with_project_api(
         AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
         runner=AOT_CORSTONE300_RUNNER,
         interface_api="c",
@@ -256,7 +256,7 @@ def test_maxpool_1d(data_shape_nwc, pool_size, strides, padding):
     inputs = {"input": np.random.randint(low=-128, high=127, size=ishape, dtype="int8")}
     output_list = generate_ref_data(mod, inputs)
 
-    compile_and_run(
+    compile_and_run_with_project_api(
         AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
         runner=AOT_CORSTONE300_RUNNER,
         interface_api="c",
@@ -295,7 +295,7 @@ def test_avgpool_2d(data_shape_nchw, pool_size, strides, padding):
     inputs = {"input": input_data}
     output_list = generate_ref_data(ref_mod, inputs)
 
-    compile_and_run(
+    compile_and_run_with_project_api(
         AOTTestModel(
             module=mod, inputs={"input": input_data.astype(dtype="int16")}, outputs=output_list
         ),
@@ -334,7 +334,7 @@ def test_avgpool_1d(data_shape_ncw, pool_size, strides, padding):
     inputs = {"input": input_data}
     output_list = generate_ref_data(ref_mod, inputs)
 
-    compile_and_run(
+    compile_and_run_with_project_api(
         AOTTestModel(
             module=mod, inputs={"input": input_data.astype(dtype="int16")}, outputs=output_list
         ),

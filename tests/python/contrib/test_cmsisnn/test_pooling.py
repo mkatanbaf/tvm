@@ -22,7 +22,7 @@ import tvm
 from tvm import relay
 from tvm.relay.op.contrib import cmsisnn
 
-from tvm.testing.aot import AOTTestModel, compile_and_run, generate_ref_data
+from tvm.testing.aot import AOTTestModel, compile_and_run_with_project_api, generate_ref_data
 from tvm.micro.testing.aot_test_utils import AOT_USMP_CORSTONE300_RUNNER
 from .utils import (
     make_module,
@@ -75,7 +75,7 @@ def make_model(
     return op
 
 
-@tvm.testing.requires_corstone300
+# @tvm.testing.requires_corstone300
 @tvm.testing.requires_cmsisnn
 @pytest.mark.parametrize("in_shape", [(1, 28, 28, 12), (1, 64, 100, 4)])
 @pytest.mark.parametrize(
@@ -125,7 +125,7 @@ def test_op_int8(
         "input": np.random.randint(in_min, high=in_max, size=in_shape, dtype="int8"),
     }
     output_list = generate_ref_data(orig_mod["main"], inputs)
-    compile_and_run(
+    compile_and_run_with_project_api(
         AOTTestModel(
             module=cmsisnn_mod,
             inputs=inputs,
@@ -184,7 +184,7 @@ def test_int8_pool_with_float32_input(
     np.random.seed(0)
     inputs = {"input": np.random.uniform(0, 1, in_shape).astype("float32")}
     output_list = generate_ref_data(orig_mod["main"], inputs)
-    compile_and_run(
+    compile_and_run_with_project_api(
         AOTTestModel(
             module=cmsisnn_mod,
             inputs=inputs,

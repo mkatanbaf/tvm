@@ -24,7 +24,7 @@ import pytest
 import tvm.testing
 from tvm import relay
 from tvm.relay.op.contrib import cmsisnn
-from tvm.testing.aot import AOTTestModel, compile_and_run, generate_ref_data
+from tvm.testing.aot import AOTTestModel, compile_and_run_with_project_api, generate_ref_data
 from tvm.micro.testing.aot_test_utils import AOT_USMP_CORSTONE300_RUNNER
 
 from .utils import (
@@ -82,7 +82,7 @@ def test_op_int8(zero_point, scale):
     inputs = {"in0": input_data}
     params = {}
     output_list = generate_ref_data(orig_mod["main"], inputs, params)
-    compile_and_run(
+    compile_and_run_with_project_api(
         AOTTestModel(module=cmsisnn_mod, inputs=inputs, outputs=output_list, params=params),
         test_runner,
         interface_api,

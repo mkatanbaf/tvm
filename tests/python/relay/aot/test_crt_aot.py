@@ -45,7 +45,7 @@ from tvm.testing.aot import (
     create_relay_module_and_inputs_from_tflite_file,
     compile_and_run_with_project_api,
 )
-from tvm.micro.testing.aot_test_utils import AOT_DEFAULT_RUNNER, parametrize_aot_options
+from tvm.micro.testing.aot_test_utils import AOT_DEFAULT_RUNNER, AOT_CORSTONE300_RUNNER, parametrize_aot_options
 from tvm.micro.testing.utils import get_conv2d_relay_module
 
 
@@ -74,13 +74,20 @@ def test_project(interface_api, use_unpacked_api, test_runner, groups, weight_sh
 
     output_list = generate_ref_data(mod, inputs)
 
-    compile_and_run_with_project_api(
-        AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
-
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 def test_error_c_interface_with_packed_api():
     """Checks that an error occurs when using the packed API in combination with C interface"""
@@ -124,12 +131,20 @@ def test_conv_with_params(interface_api, use_unpacked_api, test_runner):
     inputs = {"data": input_data}
     output_list = generate_ref_data(mod, inputs, params)
 
-    compile_and_run(
-        AOTTestModel(module=mod, inputs=inputs, outputs=output_list, params=params),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=mod, inputs=inputs, outputs=output_list, params=params),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=mod, inputs=inputs, outputs=output_list, params=params),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 @parametrize_aot_options
@@ -147,17 +162,30 @@ def test_add_with_params(interface_api, use_unpacked_api, test_runner):
     inputs = {"y": input_y_data}
     output_list = generate_ref_data(func, inputs, params)
 
-    compile_and_run(
-        AOTTestModel(
-            module=IRModule.from_expr(func),
-            inputs=inputs,
-            outputs=output_list,
-            params=params,
-        ),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(
+                module=IRModule.from_expr(func),
+                inputs=inputs,
+                outputs=output_list,
+                params=params,
+            ),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(
+                module=IRModule.from_expr(func),
+                inputs=inputs,
+                outputs=output_list,
+                params=params,
+            ),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 @parametrize_aot_options
@@ -183,13 +211,21 @@ def test_conv2d(interface_api, use_unpacked_api, test_runner, groups, weight_sha
     inputs = OrderedDict([("data", i_data), ("weight", w1_data)])
 
     output_list = generate_ref_data(mod, inputs)
-    compile_and_run(
-        AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-        test_dir="/home/mhessar/work/tvm/aot/temp",
-    )
+    
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 def test_packed_global_variables():
@@ -279,12 +315,21 @@ def test_concatenate(interface_api, use_unpacked_api, test_runner):
     inputs = OrderedDict([("x", x_data), ("y", y_data), ("z", t_data)])
 
     output_list = generate_ref_data(func, inputs)
-    compile_and_run(
-        AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
+    
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 @parametrize_aot_options
@@ -304,12 +349,20 @@ def test_nested_tuples(interface_api, use_unpacked_api, test_runner):
     inputs = {"x": x_data}
     output_list = generate_ref_data(func, inputs)
 
-    compile_and_run(
-        AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 @parametrize_aot_options
@@ -317,12 +370,20 @@ def test_tuple_getitem(interface_api, use_unpacked_api, test_runner):
     func = relay.Function([], relay.TupleGetItem(relay.Tuple([relay.const(1), relay.const(2)]), 0))
     output_list = generate_ref_data(func, {})
 
-    compile_and_run(
-        AOTTestModel(module=IRModule.from_expr(func), inputs={}, outputs=output_list),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=IRModule.from_expr(func), inputs={}, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=IRModule.from_expr(func), inputs={}, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 @parametrize_aot_options
@@ -333,12 +394,20 @@ def test_id(interface_api, use_unpacked_api, test_runner):
     inputs = {"x": one}
     output_list = generate_ref_data(ident, inputs)
 
-    compile_and_run(
-        AOTTestModel(module=IRModule.from_expr(ident), inputs=inputs, outputs=output_list),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=IRModule.from_expr(ident), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=IRModule.from_expr(ident), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 @parametrize_aot_options
@@ -347,12 +416,20 @@ def test_add_const(interface_api, use_unpacked_api, test_runner):
     func = relay.Function([], two)
     output_list = generate_ref_data(func, {})
 
-    compile_and_run(
-        AOTTestModel(module=IRModule.from_expr(func), inputs={}, outputs=output_list),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=IRModule.from_expr(func), inputs={}, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=IRModule.from_expr(func), inputs={}, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 @parametrize_aot_options
@@ -367,12 +444,20 @@ def test_multiply(interface_api, use_unpacked_api, test_runner):
     inputs = OrderedDict([("x", x_data), ("y", y_data)])
     output_list = generate_ref_data(func, inputs)
 
-    compile_and_run(
-        AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 @parametrize_aot_options
@@ -383,12 +468,21 @@ def test_subtract(interface_api, use_unpacked_api, test_runner):
     i_data = np.array(1, dtype="int32")
     inputs = {"i": i_data}
     output_list = generate_ref_data(func, inputs)
-    compile_and_run(
-        AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
+    
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 @parametrize_aot_options
@@ -403,12 +497,21 @@ def test_tuple_output(interface_api, use_unpacked_api, test_runner):
     x_data = np.random.rand(6, 9).astype("float32")
     inputs = {"x": x_data}
     output_list = generate_ref_data(func, inputs)
-    compile_and_run(
-        AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
+    
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=IRModule.from_expr(func), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 @pytest.mark.parametrize(
@@ -573,18 +676,32 @@ def test_add_name_mangling_with_params(interface_api, use_unpacked_api, test_run
     inputs = {"y": y_in}
     output_list = generate_ref_data(relay_func, inputs, params)
 
-    compile_and_run(
-        AOTTestModel(
-            name="my_mod",
-            module=relay_func,
-            inputs=inputs,
-            outputs=output_list,
-            params=params,
-        ),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(
+                name="my_mod",
+                module=relay_func,
+                inputs=inputs,
+                outputs=output_list,
+                params=params,
+            ),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(
+                name="my_mod",
+                module=relay_func,
+                inputs=inputs,
+                outputs=output_list,
+                params=params,
+            ),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 @parametrize_aot_options
@@ -611,27 +728,50 @@ def test_multiple_models(interface_api, use_unpacked_api, test_runner):
     inputs2 = {"data": input_data}
     output_list2 = generate_ref_data(mod2, inputs2, params2)
 
-    compile_and_run(
-        [
-            AOTTestModel(
-                name="mod1",
-                module=mod1,
-                inputs=inputs1,
-                outputs=output_list1,
-                params=params1,
-            ),
-            AOTTestModel(
-                name="mod2",
-                module=mod2,
-                inputs=inputs2,
-                outputs=output_list2,
-                params=params2,
-            ),
-        ],
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            [
+                AOTTestModel(
+                    name="mod1",
+                    module=mod1,
+                    inputs=inputs1,
+                    outputs=output_list1,
+                    params=params1,
+                ),
+                AOTTestModel(
+                    name="mod2",
+                    module=mod2,
+                    inputs=inputs2,
+                    outputs=output_list2,
+                    params=params2,
+                ),
+            ],
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+    else:
+        compile_and_run(
+            [
+                AOTTestModel(
+                    name="mod1",
+                    module=mod1,
+                    inputs=inputs1,
+                    outputs=output_list1,
+                    params=params1,
+                ),
+                AOTTestModel(
+                    name="mod2",
+                    module=mod2,
+                    inputs=inputs2,
+                    outputs=output_list2,
+                    params=params2,
+                ),
+            ],
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
 
 
 def test_quant_mobilenet_tfl():
@@ -682,13 +822,23 @@ def test_transpose(interface_api, use_unpacked_api, test_runner):
 
     inputs = {"x": x_data, "y": y_data, "z": t_data}
     output_list = generate_ref_data(relay_func, inputs)
-    compile_and_run(
-        AOTTestModel(module=IRModule.from_expr(relay_func), inputs=inputs, outputs=output_list),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-        enable_op_fusion=False,
-    )
+    
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=IRModule.from_expr(relay_func), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+            enable_op_fusion=False,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=IRModule.from_expr(relay_func), inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+            enable_op_fusion=False,
+        )
 
 
 def test_name_sanitiser():

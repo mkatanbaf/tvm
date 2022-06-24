@@ -29,14 +29,16 @@ from tvm.relay.op.annotation import compiler_begin, compiler_end
 from tvm.relay.backend import Executor, Runtime
 from tvm import WorkspaceMemoryPools, PoolInfo
 from tvm.micro import model_library_format as mlf
-from tvm.micro.testing.aot_test_utils import parametrize_aot_options
+from tvm.micro.testing.aot_test_utils import parametrize_aot_options, AOT_CORSTONE300_RUNNER
 from tvm.testing.aot import (
     AOTTestModel,
     AOTTestRunner,
     generate_ref_data,
     compile_and_run,
+    compile_and_run_with_project_api,
     compile_models,
     run_and_check,
+    run_and_check_with_project_api,
     create_relay_module_and_inputs_from_tflite_file,
 )
 from tvm.testing.usmp import is_tvm_backendallocworkspace_calls
@@ -114,27 +116,51 @@ def test_conv2d(interface_api, use_unpacked_api, test_runner, groups, weight_sha
     inputs = OrderedDict([("data", i_data), ("weight", w1_data)])
 
     output_list = generate_ref_data(mod, inputs)
-    compile_and_run(
-        AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
-        test_runner,
-        interface_api,
-        use_unpacked_api,
-    )
-    compiled_test_mods = compile_models(
-        models=AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
-        interface_api=interface_api,
-        use_unpacked_api=use_unpacked_api,
-        pass_config=test_runner.pass_config,
-    )
+    
+    if (test_runner == AOT_CORSTONE300_RUNNER):
+        compile_and_run_with_project_api(
+            AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+        compiled_test_mods = compile_models(
+            models=AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
+            interface_api=interface_api,
+            use_unpacked_api=use_unpacked_api,
+            pass_config=test_runner.pass_config,
+        )
 
-    for compiled_model in compiled_test_mods:
-        _check_for_no_tvm_backendallocworkspace_calls(compiled_model.executor_factory.lib)
+        for compiled_model in compiled_test_mods:
+            _check_for_no_tvm_backendallocworkspace_calls(compiled_model.executor_factory.lib)
 
-    run_and_check(
-        models=compiled_test_mods,
-        runner=test_runner,
-        interface_api=interface_api,
-    )
+        run_and_check_with_project_api(
+            models=compiled_test_mods,
+            runner=test_runner,
+            interface_api=interface_api,
+        )
+    else:
+        compile_and_run(
+            AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
+            test_runner,
+            interface_api,
+            use_unpacked_api,
+        )
+        compiled_test_mods = compile_models(
+            models=AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
+            interface_api=interface_api,
+            use_unpacked_api=use_unpacked_api,
+            pass_config=test_runner.pass_config,
+        )
+
+        for compiled_model in compiled_test_mods:
+            _check_for_no_tvm_backendallocworkspace_calls(compiled_model.executor_factory.lib)
+
+        run_and_check(
+            models=compiled_test_mods,
+            runner=test_runner,
+            interface_api=interface_api,
+        )
 
 
 @pytest.mark.parametrize("merge_compiler_regions", [False, True])

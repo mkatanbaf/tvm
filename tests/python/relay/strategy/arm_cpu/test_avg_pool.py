@@ -18,7 +18,7 @@ import numpy as np
 import tvm
 import tvm.testing
 from tvm import relay
-from tvm.testing.aot import AOTTestModel, compile_and_run, generate_ref_data
+from tvm.testing.aot import AOTTestModel, compile_and_run_with_project_api, generate_ref_data
 from tvm.micro.testing.aot_test_utils import (
     AOT_CORSTONE300_RUNNER,
 )
@@ -75,7 +75,7 @@ class BasicPoolTests:
         inputs = {"input": np.random.randint(low=-128, high=127, size=ishape, dtype=dtype)}
         output_list = generate_ref_data(ref_mod, inputs)
 
-        compile_and_run(
+        compile_and_run_with_project_api(
             AOTTestModel(module=mod, inputs=inputs, outputs=output_list),
             runner=AOT_CORSTONE300_RUNNER,
             interface_api="c",

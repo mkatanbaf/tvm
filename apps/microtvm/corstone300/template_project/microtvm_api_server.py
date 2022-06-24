@@ -55,6 +55,8 @@ IS_TEMPLATE = not (API_SERVER_DIR / MODEL_LIBRARY_FORMAT_RELPATH).exists()
 
 # BOARDS = API_SERVER_DIR / "boards.json"
 
+TVM_PATH = os.getenv("HOME")
+
 ETHOSU_PATH = os.getenv("ETHOSU_PATH", "/opt/arm/ethosu")
 
 CMSIS_PATH = os.getenv("CMSIS_PATH", "/opt/arm/ethosu/cmsis")
@@ -267,7 +269,7 @@ class Handler(server.ProjectAPIHandler):
                                 cflags += f"{item} "
                             line = line.replace("<CFLAGS>", f'CFLAGS="{cflags}"')
                         elif "<TVM_ROOT>" in line:
-                            line = line.replace("<TVM_ROOT>", f"TVM_ROOT=/home/mhessar/work/tvm")
+                            line = line.replace("<TVM_ROOT>", f"TVM_ROOT={TVM_PATH}")
                         elif "<CMSIS_PATH>" in line:
                             cmsis_path = (
                                 options.get("CMSIS_PATH")
