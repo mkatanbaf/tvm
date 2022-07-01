@@ -31,12 +31,14 @@ import shlex
 import shutil
 import subprocess
 import sys
+from syslog import LOG_INFO
 import tarfile
 import tempfile
 import threading
 from typing import Union
 import usb
-
+import socket
+import time
 import serial
 import serial.tools.list_ports
 import yaml
@@ -555,6 +557,10 @@ class Handler(server.ProjectAPIHandler):
             # Some boards support more than one emulator, so ensure QEMU is set.
             cmake_args.append(f"-DEMU_PLATFORM=qemu")
 
+        if self._is_fvp(options):    
+            cmake_args.append(f"-DEMU_PLATFORM=armfvp")
+            cmake_args.append(f"-DARMFVP_BIN_PATH:PATH=/opt/arm/FVP_Corstone_SSE-300/models/Linux64_GCC-6.4/")
+
         cmake_args.append(f"-DBOARD:STRING={options['zephyr_board']}")
 
         check_call(cmake_args, cwd=BUILD_DIR)
@@ -567,7 +573,8 @@ class Handler(server.ProjectAPIHandler):
     # A list of all zephyr_board values which are known to launch using QEMU. Many platforms which
     # launch through QEMU by default include "qemu" in their name. However, not all do. This list
     # includes those tested platforms which do not include qemu.
-    _KNOWN_QEMU_ZEPHYR_BOARDS = ("mps2_an521", "mps3_an547")
+    _KNOWN_QEMU_ZEPHYR_BOARDS = ("mps2_an521")
+    _KNOWN_FVP_ZEPHYR_BOARDS = ("mps3_an547")
 
     @classmethod
     def _is_qemu(cls, options):
@@ -577,12 +584,18 @@ class Handler(server.ProjectAPIHandler):
         )
 
     @classmethod
+    def _is_fvp(cls, options):
+        return (
+            options["zephyr_board"] in cls._KNOWN_FVP_ZEPHYR_BOARDS
+        )
+
+    @classmethod
     def _has_fpu(cls, zephyr_board):
         fpu_boards = [name for name, board in BOARD_PROPERTIES.items() if board["fpu"]]
         return zephyr_board in fpu_boards
 
     def flash(self, options):
-        if self._is_qemu(options):
+        if self._is_qemu(options) or self._is_fvp(options):
             return  # NOTE: qemu requires no flash step--it is launched from open_transport.
 
         zephyr_board = options["zephyr_board"]
@@ -602,6 +615,8 @@ class Handler(server.ProjectAPIHandler):
     def open_transport(self, options):
         if self._is_qemu(options):
             transport = ZephyrQemuTransport(options)
+        elif self._is_fvp(options):
+            transport = ZephyrFVPTransport(options)
         else:
             transport = ZephyrSerialTransport(options)
 
@@ -883,6 +898,122 @@ class ZephyrQemuTransport:
 
             raise ValueError(f"{item} not expected.")
 
+class ZephyrFVPMakeResult(enum.Enum):
+    FVP_STARTED = "FVP_started"
+    MAKE_FAILED = "make_failed"
+    EOF = "eof"
+
+
+class ZephyrFVPTransport:
+    """The user-facing Zephyr FVP transport class."""
+
+    def __init__(self, options):
+        self.options = options
+        self.proc = None
+        self.port = None
+        self.socket = None
+        self._queue = queue.Queue()
+
+    def open(self):
+        env = None
+        self.proc = subprocess.Popen(
+            ["make", "run"],
+            cwd=BUILD_DIR,
+            env=env,
+            stdout=subprocess.PIPE,
+        )
+        self._wait_for_fvp()
+
+        self.port = 5000
+        self.socket = socket.socket()     
+        self.socket.connect(('127.0.0.1', self.port))
+
+        if (not self._wait_for_init()):
+            self.close()
+            raise RuntimeError("FVP setup failed.")
+
+        return server.TransportTimeouts(
+            session_start_retry_timeout_sec=2.0,
+            session_start_timeout_sec=5.0,
+            session_established_timeout_sec=5.0,
+        )
+
+    def close(self):
+        self.socket.close()
+        self.socket = None
+
+        if self.proc:
+            self.proc.terminate()
+            try:
+                self.proc.wait(5.0)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+
+    def read(self, n, timeout_sec):
+        self.socket.settimeout(timeout_sec)
+        bytes = bytearray()
+        while (len(bytes) < n):
+            try:
+                received =  self.socket.recv(n)
+                bytes += received
+            except:
+                raise server.IoTimeoutError()
+        return bytes
+
+    def write(self, data: str, timeout_sec):
+        index = 0
+        chunk_size = 1
+        # self.socket.send(bytearray(data))
+        while index < len(data):
+            end_index = min(index+chunk_size, len(data))
+            chunk = data[index:end_index]
+            self.socket.send(bytearray(chunk))
+            time.sleep(0.00015)
+            index = end_index
+        time.sleep(0.05)
+
+    def _fvp_check_stdout(self):
+        for line in self.proc.stdout:
+            line = str(line)
+            _LOG.info("%s", line)
+            if re.search("telnetterminal", line, re.IGNORECASE):
+                _LOG.debug(line)
+            if "Ethos-U rev" in line:
+                self._queue.put(ZephyrFVPMakeResult.FVP_STARTED)
+            else:
+                line = re.sub("[^a-zA-Z0-9 \n]", "", line)
+                pattern = r"recipe for target (\w*) failed"
+                if re.search(pattern, line, re.IGNORECASE):
+                    self._queue.put(ZephyrFVPMakeResult.MAKE_FAILED)
+        self._queue.put(ZephyrFVPMakeResult.EOF)
+
+    def _wait_for_fvp(self):
+        threading.Thread(target=self._fvp_check_stdout, daemon=True).start()
+        while True:
+            try:
+                item = self._queue.get(timeout=120)
+            except Exception:
+                raise TimeoutError("FVP setup timeout.")
+
+            if item == ZephyrFVPMakeResult.FVP_STARTED:
+                time.sleep(0.2)
+                break
+
+            if item in [ZephyrFVPMakeResult.MAKE_FAILED, ZephyrFVPMakeResult.EOF]:
+                raise RuntimeError("FVP setup failed.")
+
+            raise ValueError(f"{item} not expected.")
+
+    def _wait_for_init(self):
+        for i in range(5):
+            self.write([1,2,3], 2)
+            self.read(3, 3)
+        self.socket.settimeout(3)
+        line = str(self.socket.recv(100))
+        _LOG.info(line)
+        if "microTVM Zephyr runtime - running" in line:
+            return True
+        return False
 
 if __name__ == "__main__":
     server.main(Handler())

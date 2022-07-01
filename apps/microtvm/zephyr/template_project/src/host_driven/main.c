@@ -276,6 +276,10 @@ void main(void) {
 
   // Claim console device.
   tvm_uart = device_get_binding(DT_LABEL(DT_CHOSEN(zephyr_console)));
+  #define UART_BASE  0x59303000
+  uint32_t bauddiv;
+  bauddiv = *(uint32_t *)(UART_BASE + 0x10);
+  *(uint32_t *)(UART_BASE + 0x10) = (uint32_t) 0xFF;
   uart_rx_init(&uart_rx_rbuf, tvm_uart);
 
   // Initialize microTVM RPC server, which will receive commands from the UART and execute them.
