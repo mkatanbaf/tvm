@@ -42,6 +42,13 @@
 #include <tvm/runtime/crt/microtvm_rpc_server.h>
 #include <unistd.h>
 #include <zephyr.h>
+#include <irq.h>
+
+#define UART0_BASE 0x59303000
+#define UART0_STATE (UART0_BASE+0x04)
+#define UART0_CTRL (UART0_BASE+0x08)
+#define UART0_INTCLEAR (UART0_BASE+0x0C)
+#define UART0_BAUDDIV (UART0_BASE+0x10)
 
 #ifdef CONFIG_ARCH_POSIX
 #include "posix_board_if.h"
@@ -253,8 +260,27 @@ void uart_irq_cb(const struct device* dev, void* user_data) {
 
 // Used to initialize the UART receiver.
 void uart_rx_init(struct ring_buf* rbuf, const struct device* dev) {
+  *(uint32_t *)(UART0_BAUDDIV) = (uint32_t) 0xFF; // set baudrate
   uart_irq_callback_user_data_set(dev, uart_irq_cb, (void*)rbuf);
   uart_irq_rx_enable(dev);
+}
+
+#define OVERRUN_IRQ  48       /* device uses IRQ 48 */
+#define OVERRUN_PRIO  2       /* device uses interrupt priority 2 */
+#define OVERRUN_ARG  0        /* argument passed to isr()*/
+#define OVERRUN_FLAGS 0       /* IRQ flags. Unused on non-x86 */
+
+void overrun_isr(void *arg)
+{
+  *(uint32_t *)(UART0_STATE) = (uint32_t) 0x00; // clear overrun
+  *(uint32_t *)(UART0_INTCLEAR) = (uint32_t) 0x08; // clear overrun
+}
+
+void overrun_init(void)
+{
+  *(uint32_t *)(UART0_CTRL) = (uint32_t) 0x2b; // activate overrun interrupt
+   IRQ_CONNECT(OVERRUN_IRQ, OVERRUN_PRIO, overrun_isr, OVERRUN_ARG, OVERRUN_FLAGS);
+   irq_enable(OVERRUN_IRQ);
 }
 
 // The main function of this application.

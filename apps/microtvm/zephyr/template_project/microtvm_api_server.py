@@ -968,7 +968,7 @@ class ZephyrFVPTransport:
             end_index = min(index+chunk_size, len(data))
             chunk = data[index:end_index]
             self.socket.send(bytearray(chunk))
-            time.sleep(0.00015)
+            time.sleep(0.00003)
             index = end_index
         time.sleep(0.05)
 
