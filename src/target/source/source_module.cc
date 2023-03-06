@@ -306,6 +306,7 @@ class CSourceCrtMetadataModuleNode : public runtime::ModuleNode {
                 [](const ConstantInfo& a, const ConstantInfo& b) {
                   return a->byte_offset->value < b->byte_offset->value;
                 });
+      int i = 0;
       for (const auto& const_info : const_info_vec) {
         const auto& data = const_info->data;
         const auto& offs = const_info->byte_offset;
@@ -313,7 +314,7 @@ class CSourceCrtMetadataModuleNode : public runtime::ModuleNode {
                                                std::multiplies<int64_t>());
         code_ << "  ";
         codegen_c_base_.PrintType(data.DataType(), code_);
-        code_ << " " << const_info->name_hint << "[" << num_elements << "] __attribute__(("
+        code_ << " " << const_info->name_hint << "_" << std::to_string(i++) << "[" << num_elements << "] __attribute__(("
               << (ord++ ? "packed, " : "") << "aligned(" << metadata_->constant_alignment << ")));";
         code_ << " // " << num_elements * data.DataType().bytes()
               << " bytes, aligned offset: " << offs << "\n";
@@ -321,8 +322,9 @@ class CSourceCrtMetadataModuleNode : public runtime::ModuleNode {
       code_ << "} " << pool_info->pool_name << " = {\n";
 
       // emit struct field initialization data
+      i = 0;
       for (const auto& const_info : const_info_vec) {
-        code_ << "  ." << const_info->name_hint << " = {\n";
+        code_ << "  ." << const_info->name_hint << "_" << std::to_string(i++) << " = {\n";
         codegen::NDArrayDataToC(const_info->data, 4, code_);
         code_ << "  },\n";
       }

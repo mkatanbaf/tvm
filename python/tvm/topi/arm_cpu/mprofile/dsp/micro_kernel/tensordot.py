@@ -380,6 +380,133 @@ def tensordot_int16_impl(
 
     def insert_lines(lines):
         return ("\n" + " " * 10).join(lines)
+    
+    def insert_line(lines, index):
+        return "\n" + " " * 10 + (lines[index])
+    
+    def add_line(str):
+        return "\n" + " " * 10 + str
+    
+    def add_load(var, pointer, offset):
+        return add_line(f'{var} = {pointer}[{str(offset)}];')
+        # return add_line(f'__asm__ ("ldr %0, [%1, {str(offset)}]" : "=r" ({var}) : "r" ({pointer}));')
+        # return add_line(f'__asm__ ("ldr {var}, [{pointer}, #{str(4*offset)}]":::"{var}");')
+    
+    def add_mac(var, input, kernel):
+        return add_line(f'{var} = __smlad( {input}, {kernel}, {var});')
+        # return add_line(f'__asm__ ("smlad %0, %1, %2, %3" : "=r" ({var}) : "r" ({input}), "r" ({kernel}), "r" ({var}));')
+        # return add_line(f'__asm__ ("smlad {var}, {input}, {kernel}, {var}");')
+    
+    def load_reg(reg, var):
+        return add_line(f'__asm__ ("mov {reg}, %0" :: "r" ({var}) : "{reg}");')
+    
+    def store_reg(reg, var):
+        return add_line(f'__asm__ ("mov %0, {reg}" : "=r" ({var}));')
+    
+    
+    def insert_all(tensor_lines, kernel_lines, mul_acc_lines):
+        tensor_lines = list(tensor_lines)
+        kernel_lines = list(kernel_lines)
+        mul_acc_lines = list(mul_acc_lines)
+
+        l = len(kernel_lines)
+        lines = ""
+        lines += add_line("int32_t sum_0 = *bias, sum_1 = *bias;")
+        lines += add_line("bias++;")
+        lines += add_line("int32_t sum_2 = *(bias), sum_3 = *(bias);")
+        lines += add_line("int32_t k0, k1, k2, k3;")
+        lines += add_line("int32_t t0, t1;\n")
+                
+        # lines += load_reg("r0", "sum_0")
+        # lines += load_reg("r1", "sum_1")
+        # lines += load_reg("r2", "sum_2")
+        # lines += load_reg("r3", "sum_3")
+        # lines += load_reg("r8", "kernel")
+        # lines += load_reg("r9", "tensor")
+
+        for i in range(l//2): 
+
+            lines += add_load("t0", "tensor", 2*i)
+            lines += add_load("t1", "tensor", 2*i+1)
+
+            lines += add_load("k1", "kernel", 2*i+l)
+            lines += add_load("k3", "kernel", 2*i+1+l)
+            
+            lines += add_mac("sum_0", "t0", "k0")
+            lines += add_mac("sum_1", "t1", "k0")
+
+            lines += add_load("t0", "tensor", 2*i+1)
+            lines += add_load("t1", "tensor", 2*i+1+l)
+
+            lines += add_mac("sum_0", "t0", "k2")
+            lines += add_mac("sum_1", "t1", "k2")
+
+            lines += add_load("k0", "kernel", 2*(i+1))
+            lines += add_load("k2", "kernel", 2*(i+1)+1)
+
+            lines += add_mac("sum_2", "t0", "k3")
+            lines += add_mac("sum_3", "t1", "k3")
+
+            lines += add_load("t0", "tensor", 2*i)
+            lines += add_load("t1", "tensor", 2*i+l)
+
+            lines += add_mac("sum_2", "t0", "k1")
+            lines += add_mac("sum_3", "t1", "k1")
+            
+            # lines += add_load("fp", "r9", 2*i)
+            # lines += add_load("ip", "r9", 2*i+1)
+
+            # lines += add_load("r5", "r8", 2*i+l)
+            # lines += add_load("r7", "r8", 2*i+1+l)
+            
+            # lines += add_mac("r0", "fp", "r4")
+            # lines += add_mac("r1", "ip", "r4")
+
+            # lines += add_load("fp", "r9", 2*i+1)
+            # lines += add_load("ip", "r9", 2*i+1+l)
+
+            # lines += add_mac("r0", "fp", "r6")
+            # lines += add_mac("r1", "ip", "r6")
+
+            # lines += add_load("r4", "r8", 2*(i+1))
+            # lines += add_load("r6", "r8", 2*(i+1)+1)
+
+            # lines += add_mac("r2", "fp", "r7")
+            # lines += add_mac("r3", "ip", "r7")
+
+            # lines += add_load("fp", "r9", 2*i)
+            # lines += add_load("ip", "r9", 2*i+l)
+
+            # lines += add_mac("r2", "fp", "r5")
+            # lines += add_mac("r3", "ip", "r5")
+        
+        # lines += store_reg("r0", "sum_0")
+        # lines += store_reg("r1", "sum_1")
+        # lines += store_reg("r2", "sum_2")
+        # lines += store_reg("r3", "sum_3")
+
+        lines += add_line("int32_t scale_val = *scale;")
+        lines += add_line("int32_t requant_0 = (sum_0 * (int64_t) scale_val) >> 32;")
+        lines += add_line("requant_0 = (requant_0 + 1) >> 1;")
+        lines += add_line("requant_0 = __ssat(requant_0 + 5, 8);")
+        lines += add_line("int32_t requant_1 = (sum_1 * (int64_t) scale_val) >> 32;")
+        lines += add_line("requant_1 = (requant_1 + 1) >> 1;")
+        lines += add_line("requant_1 = __ssat(requant_1 + 5, 8);")
+                          
+        lines += add_line("scale++;")
+        lines += add_line("scale_val = *scale;")
+        lines += add_line("int32_t requant_2 = (sum_2 * (int64_t) scale_val) >> 32;")
+        lines += add_line("requant_2 = (requant_2 + 1) >> 1;")
+        lines += add_line("requant_2 = __ssat(requant_2 + 5, 8);")
+        lines += add_line("int32_t requant_3 = (sum_3 * (int64_t) scale_val) >> 32;")
+        lines += add_line("requant_3 = (requant_3 + 1) >> 1;")
+        lines += add_line("requant_3 = __ssat(requant_3 + 5, 8);")
+
+        lines += add_line("output[0] = requant_2 << 16 | (requant_0 & 0x0000ffff);")
+        lines += add_line("output[64] = requant_3 << 16 | (requant_1 & 0x0000ffff);")
+
+        return lines
+
 
     # It's very common for one model to have different layers that use identical tensordot
     # functions. To prevent function re-definition errors, we need an #include guard. This is better
@@ -392,17 +519,7 @@ def tensordot_int16_impl(
         __attribute__((always_inline)) static inline int32_t {function_name}(
             int32_t *output, int32_t *tensor, int32_t *kernel, int32_t *bias, int32_t *scale
         ) {{
-          {_init_biased_accumulators(num_outputs)}
-
-          {insert_lines(load_tensor_lines)}
-
-          {insert_lines(load_kernel_lines)}
-
-          {insert_lines(multiply_acc_lines)}
-
-          {insert_lines(requantize_lines)}
-
-          {insert_lines(write_out_lines)}
+          {insert_all(load_tensor_lines, load_kernel_lines, multiply_acc_lines)}
           return 0;
         }}
         #endif

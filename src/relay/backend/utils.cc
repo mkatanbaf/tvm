@@ -417,7 +417,7 @@ Optional<tir::PrimFunc> DefaultTIRConverterImpl(const Array<te::Tensor>& args,
       return NullOpt;
     }
   }
-  PrimFunc func = te::CreatePrimFuncWithConstants(args, constants, DataType::Int(64));
+  PrimFunc func = te::CreatePrimFuncWithConstants(args, constants, DataType::Int(32));
   bool dynamic_loop_extent = false;
   tir::PostOrderVisit(func->body, [&dynamic_loop_extent](const ObjectRef& obj) -> void {
     if (const auto* loop = obj.as<tir::ForNode>()) {
